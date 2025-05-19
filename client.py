@@ -79,7 +79,11 @@ def draw_game(screen):
 def run_client():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', action='store_true')
+    parser.add_argument('--ip', type=str, default='127.0.0.1')
     args = parser.parse_args()
+
+    SERVER_IP = args.ip
+
     if args.host:
         threading.Thread(target=start_server, daemon=True).start()
 
