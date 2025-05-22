@@ -1,13 +1,15 @@
 import socket
 import threading
 import time
-
+import requests
 import pygame
 import json
 import sys
 import argparse
 from server import start_server
 from classes import Player, Bullet, Game
+from dotenv import load_dotenv
+import os
 
 SERVER_IP = '127.0.0.1'
 SERVER_PORT = 9999
@@ -18,6 +20,9 @@ BULLET_RADIUS = 10
 
 game = Game()
 state_lock = threading.Lock()
+
+load_dotenv()
+SECRET_TOKEN = os.getenv('REMOTE_SERVER_TOKEN')
 
 def receive_game_state(sock):
     buffer = ""
@@ -84,8 +89,11 @@ def run_client():
 
     SERVER_IP = args.ip
 
-    if args.host:
-        threading.Thread(target=start_server, daemon=True).start()
+    # if args.host:
+    #     threading.Thread(target=start_server, daemon=True).start()
+
+    start_remote_server()
+    time.sleep(0.5)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((SERVER_IP, SERVER_PORT))
@@ -114,6 +122,13 @@ def run_client():
     pygame.quit()
     sock.close()
     sys.exit()
+
+def start_remote_server():
+    headers = {
+        "Authorization": f"Bearer {SECRET_TOKEN}"
+    }
+    response = requests.post("http://10.144.69.247:9998/start", headers=headers)
+    print(response.json())
 
 if __name__ == '__main__':
     run_client()
