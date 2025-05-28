@@ -18,8 +18,6 @@ class Player:
         self.id = id
         self.x = x
         self.y = y
-        self.move_dx = 0
-        self.move_dy = 0
         self.color = color
         self.health = health
         self.alive = alive

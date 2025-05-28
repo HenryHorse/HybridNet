@@ -55,7 +55,11 @@ def send_input(sock, keys, mouse_clicked):
         dx += 1
 
     def send(msg):
-        sock.sendall((json.dumps(msg) + "\n").encode())
+        sock.setblocking(False)
+        try:
+            sock.send((json.dumps(msg) + "\n").encode())
+        except BlockingIOError:
+            pass
     try:
         if dx != 0 or dy != 0:
             send({"move_vec": [dx, dy]})
@@ -97,6 +101,7 @@ def run_client():
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((SERVER_IP, SERVER_PORT))
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     threading.Thread(target=receive_game_state, args=(sock,), daemon=True).start()
 
     pygame.init()

@@ -35,7 +35,7 @@ def handle_client(connection, address, game: Game, player_id):
             while "\n" in buffer:
                 line, buffer = buffer.split("\n", 1)
                 try:
-                    msg = json.loads(data)
+                    msg = json.loads(line)
                 except json.JSONDecodeError:
                     continue
 
@@ -44,7 +44,8 @@ def handle_client(connection, address, game: Game, player_id):
                     if not player or not player.alive:
                         continue
                     if "move_vec" in msg:
-                        player.move_dx, player.move_dy = msg["move_vec"]
+                        dx, dy = msg["move_vec"]
+                        player.move(dx, dy)
                     if "shoot" in msg:
                         mx, my = msg["shoot"]
                         dx, dy = normalize(mx - player.x, my - player.y)
@@ -81,7 +82,6 @@ def game_loop(game: Game):
 
             for player in game.players.values():
                 if not player.alive:
-                    player.move(player.move_dx, player.move_dy)
                     player.respawn_timer -= 1
                     if player.respawn_timer <= 0:
                         player.health = 100
@@ -115,6 +115,7 @@ def start_server():
     player_id = 0
     while True:
         connection, address = server.accept()
+        connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         clients.append(connection)
         threading.Thread(target=handle_client, args=(connection, address, game, player_id), daemon=True).start()
         player_id += 1
