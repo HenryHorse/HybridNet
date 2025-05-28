@@ -44,8 +44,7 @@ def handle_client(connection, address, game: Game, player_id):
                     if not player or not player.alive:
                         continue
                     if "move_vec" in msg:
-                        dx, dy = msg["move_vec"]
-                        player.move(dx, dy)
+                        player.move_dx, player.move_dy = msg["move_vec"]
                     if "shoot" in msg:
                         mx, my = msg["shoot"]
                         dx, dy = normalize(mx - player.x, my - player.y)
@@ -82,6 +81,7 @@ def game_loop(game: Game):
 
             for player in game.players.values():
                 if not player.alive:
+                    player.move(player.move_dx, player.move_dy)
                     player.respawn_timer -= 1
                     if player.respawn_timer <= 0:
                         player.health = 100

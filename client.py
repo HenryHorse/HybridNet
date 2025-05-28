@@ -127,7 +127,7 @@ def start_remote_server():
     headers = {
         "Authorization": f"Bearer {SECRET_TOKEN}"
     }
-    response = requests.post("http://10.144.69.247:9998/start", headers=headers)
+    response = requests.post("http://99.110.182.164:9998/start", headers=headers)
     print(response.json())
 
 if __name__ == '__main__':
