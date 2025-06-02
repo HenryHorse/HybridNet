@@ -115,7 +115,6 @@ def start_server():
     player_id = 0
     while True:
         connection, address = server.accept()
-        connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         clients.append(connection)
         threading.Thread(target=handle_client, args=(connection, address, game, player_id), daemon=True).start()
         player_id += 1

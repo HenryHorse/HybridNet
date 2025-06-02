@@ -24,7 +24,13 @@ state_lock = threading.Lock()
 load_dotenv()
 SECRET_TOKEN = os.getenv('REMOTE_SERVER_TOKEN')
 
+local_player_id = None
+
+pending_inputs = []
+input_sequence_number = 0
+
 def receive_game_state(sock):
+    global local_player_id
     buffer = ""
     while True:
         try:
@@ -36,13 +42,39 @@ def receive_game_state(sock):
                 line, buffer = buffer.split("\n", 1)
                 parsed = json.loads(line)
                 with state_lock:
-                    game.players = [Player.from_dict(p) for p in parsed["players"]]
-                    game.bullets = [Bullet.from_dict(b) for b in parsed["bullets"]]
+                    players = [Player.from_dict(p) for p in parsed["players"]]
+                    bullets = [Bullet.from_dict(b) for b in parsed["bullets"]]
+
+                    if local_player_id is None:
+                        if len(players) > len(game.players):
+                            local_player_id = len(players) - 1
+
+
+                    if local_player_id is not None and local_player_id < len(game.players):
+                        predicted = game.players[local_player_id]
+                    else:
+                        predicted = None
+                    game.players = players
+                    game.bullets = bullets
+
+                    if predicted is not None:
+                        server = game.players[local_player_id]
+
+                        dx = abs(predicted.x - server.x)
+                        dy = abs(predicted.y - server.y)
+
+                        if dx > 3 or dy > 3:
+                            predicted.x = server.x
+                            predicted.y = server.y
+
+                            for _, dx, dy in pending_inputs:
+                                predicted.move(dx, dy)
         except Exception as e:
             print(f"Error: {e}")
             break
 
 def send_input(sock, keys, mouse_clicked):
+    global input_sequence_number
     dx = 0
     dy = 0
     if keys[pygame.K_w]:
@@ -55,14 +87,21 @@ def send_input(sock, keys, mouse_clicked):
         dx += 1
 
     def send(msg):
-        sock.setblocking(False)
-        try:
-            sock.send((json.dumps(msg) + "\n").encode())
-        except BlockingIOError:
-            pass
+        sock.sendall((json.dumps(msg) + "\n").encode())
     try:
         if dx != 0 or dy != 0:
-            send({"move_vec": [dx, dy]})
+            msg = {
+                "move_vec": [dx, dy],
+                "seq": input_sequence_number,
+            }
+            send(msg)
+
+            with state_lock:
+                if local_player_id is not None and 0 <= local_player_id < len(game.players):
+                    game.players[local_player_id].move(dx, dy)
+                    pending_inputs.append((input_sequence_number, dx, dy))
+            input_sequence_number += 1
+
         if mouse_clicked:
             mx, my = pygame.mouse.get_pos()
             send({"shoot": [mx, my]})
@@ -101,7 +140,6 @@ def run_client():
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((SERVER_IP, SERVER_PORT))
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     threading.Thread(target=receive_game_state, args=(sock,), daemon=True).start()
 
     pygame.init()
@@ -132,7 +170,7 @@ def start_remote_server():
     headers = {
         "Authorization": f"Bearer {SECRET_TOKEN}"
     }
-    response = requests.post("http://99.110.182.164:9998/start", headers=headers)
+    response = requests.post("http://100.91.195.61:9998/start", headers=headers)
     print(response.json())
 
 if __name__ == '__main__':
