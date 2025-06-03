@@ -20,6 +20,16 @@ def normalize(dx, dy):
         dy /= dist
     return dx, dy
 
+
+def broadcast_host_migration(new_ip):
+    msg = json.dumps({"new_host": new_ip}) + "\n"
+    with lock:
+        for client in clients:
+            try:
+                client.sendall(msg.encode())
+            except:
+                pass
+
 def handle_client(connection, address, game: Game, player_id):
     print(f"Client {player_id} connected from {address}.")
     buffer = ""
@@ -37,6 +47,12 @@ def handle_client(connection, address, game: Game, player_id):
                 try:
                     msg = json.loads(line)
                 except json.JSONDecodeError:
+                    continue
+
+                if "migrate" in msg:
+                    new_ip = msg["migrate"]
+                    print(f"Received migrate request from host: {new_ip}. Broadcasting to all clients")
+                    broadcast_host_migration(new_ip)
                     continue
 
                 with lock:
@@ -115,7 +131,8 @@ def start_server():
     player_id = 0
     while True:
         connection, address = server.accept()
-        clients.append(connection)
+        with lock:
+            clients.append(connection)
         threading.Thread(target=handle_client, args=(connection, address, game, player_id), daemon=True).start()
         player_id += 1
 
